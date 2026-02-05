@@ -1,0 +1,25 @@
+# Ignore local state files (since we are moving to S3)
+*.tfstate
+*.tfstate.*
+
+# Ignore the provider binaries
+.terraform/
+
+# Ignore sensitive variable files (where you might store temporary secrets)
+*.tfvars
+*.tfvars.json
+
+# Ignore all var files by default
+*.tfvars
+*.tfvars.json
+
+# BUT allow the specific challenge config file
+!rapyd.tfvars
+
+# Ignore CLI configuration and crash logs
+.terraformrc
+terraform.rc
+crash.log
+
+# Ignore OS-specific files
+.DS_Store
