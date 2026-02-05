@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sentinel-gateway-proxy
+spec:
+  template:
+    spec:
+      containers:
+      - name: nginx-proxy
+        image: nginx:latest
+        env:
+        - name: BACKEND_URL
+          # You will get this DNS after applying the backend service
+          value: "http://internal-sentinel-backend-xxxx.elb.eu-west-2.amazonaws.com"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sentinel-gateway-public
+spec:
+  type: LoadBalancer # This one is public-facing
+  selector:
+    app: sentinel-gateway-proxy
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80

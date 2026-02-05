@@ -1,0 +1,36 @@
+name: "Sentinel Split - Multi-Env Deployment"
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_env:
+        description: 'Select Environment'
+        required: true
+        default: 'testing'
+        type: choice
+        options:
+          - testing
+          - rapyd
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.target_env }} # This picks the correct secrets
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }} # Loaded from the environment
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Apply
+        # Use the variable file specified in your environment secrets
+        run: terraform apply -var-file="${{ secrets.TF_VARS_FILE }}" -auto-approve
