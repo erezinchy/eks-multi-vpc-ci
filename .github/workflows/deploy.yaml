@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - dev        # Automatically trigger when you push to dev
-      - main       # Also trigger on main for final submission
+      - main       # Trigger on main for final submission
   workflow_dispatch:
     inputs:
       target_env:
@@ -19,7 +19,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    # This dynamically picks 'rapyd' or 'testing' to load the correct secrets/vars
+    # Dynamically picks 'rapyd' if on dev branch, otherwise uses manual input
     environment: ${{ github.event.inputs.target_env || (github.ref == 'refs/heads/dev' && 'rapyd' || 'testing') }}
     
     steps:
@@ -31,7 +31,8 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ vars.AWS_REGION }}
+          # Uses the variable from the GitHub Environment with a hardcoded fallback
+          aws-region: ${{ vars.AWS_REGION || 'eu-west-2' }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -65,18 +66,25 @@ jobs:
 
       - name: Deploy to Backend Cluster
         run: |
-          aws eks update-kubeconfig --name eks-backend --region ${{ vars.AWS_REGION }}
-          # Validate manifests first (Requirement)
+          # Use local variable for cleaner script
+          REGION=${{ vars.AWS_REGION || 'eu-west-2' }}
+          aws eks update-kubeconfig --name eks-backend --region $REGION
+          
+          # Requirement: Validate manifests (dry-run)
           kubectl apply -f k8s/backend-service.yaml --dry-run=client
           kubectl apply -f k8s/network-policy.yaml --dry-run=client
+          
           # Actual Apply
           kubectl apply -f k8s/backend-service.yaml
           kubectl apply -f k8s/network-policy.yaml
 
       - name: Deploy to Gateway Cluster
         run: |
-          aws eks update-kubeconfig --name eks-gateway --region ${{ vars.AWS_REGION }}
-          # Validate manifests first (Requirement)
+          REGION=${{ vars.AWS_REGION || 'eu-west-2' }}
+          aws eks update-kubeconfig --name eks-gateway --region $REGION
+          
+          # Requirement: Validate manifests (dry-run)
           kubectl apply -f k8s/gateway-proxy.yaml --dry-run=client
+          
           # Actual Apply
           kubectl apply -f k8s/gateway-proxy.yaml
