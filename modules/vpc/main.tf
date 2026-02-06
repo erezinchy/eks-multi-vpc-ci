@@ -1,17 +1,16 @@
-# modules/vpc/main.tf
-
 terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 5.0" # Or your preferred version
+      version = "~> 5.0" 
     }
   }
 }
 
+# --- Variables ---
 variable "vpc_name" {
   type        = string
-  description = "Name of the VPC for the Rapyd Sentinel project"
+  description = "Name of the VPC"
 }
 
 variable "vpc_cidr" {
@@ -19,11 +18,27 @@ variable "vpc_cidr" {
   description = "CIDR block for the VPC"
 }
 
+variable "public_subnets" { 
+  type        = list(string) 
+  description = "Public subnet CIDRs"
+}
 
-variable "public_subnets" { type = list(string) }
-variable "private_subnets" { type = list(string) }
-variable "azs" { type = list(string) }
+variable "private_subnets" { 
+  type        = list(string) 
+  description = "Private subnet CIDRs"
+}
 
+variable "azs" { 
+  type        = list(string) 
+  description = "Availability zones"
+}
+
+variable "eks_cluster_name" {
+  type        = string
+  description = "EKS cluster name for tagging"
+}
+
+# --- Resources ---
 resource "aws_vpc" "this" {
   cidr_block           = var.vpc_cidr
   enable_dns_support   = true
@@ -38,14 +53,13 @@ resource "aws_internet_gateway" "this" {
   tags   = { Name = "${var.vpc_name}-igw" }
 }
 
-# NAT Gateway logic so private nodes can talk to the internet
 resource "aws_eip" "nat" {
   domain = "vpc"
 }
 
 resource "aws_nat_gateway" "this" {
   allocation_id = aws_eip.nat.id
-  subnet_id     = aws_subnet.public[0].id # Puts NAT in the first public subnet
+  subnet_id     = aws_subnet.public[0].id
   tags          = { Name = "${var.vpc_name}-nat" }
 }
 
@@ -67,14 +81,13 @@ resource "aws_subnet" "private" {
   cidr_block        = var.private_subnets[count.index]
   availability_zone = var.azs[count.index]
   tags = {
-    Name                              = "${var.vpc_name}-private-${count.index}"
-    "kubernetes.io/role/internal-elb" = "1"
-    "kubernetes.io/cluster/${var.eks_cluster_name}" = "owned"    
+    Name                                            = "${var.vpc_name}-private-${count.index}"
+    "kubernetes.io/role/internal-elb"               = "1"
+    "kubernetes.io/cluster/${var.eks_cluster_name}" = "owned"
   }
 }
 
-# --- ROUTE TABLES (This is what was missing!) ---
-
+# --- Route Tables ---
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.this.id
   route {
