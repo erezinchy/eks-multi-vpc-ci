@@ -27,6 +27,12 @@ to create:
 - Update gateway-proxy.yaml with the DNS and deploy: 
 -- kubectl apply -f k8s/gateway/
 
+7. verification:
+-- kubectl get svc sentinel-gateway-public --context gateway
+-- curl http://DNS_Name.eu-west-2.elb.amazonaws.com #  should get 200
+
+
+
 Currently include:
 1. Two Isolated VPCs: vpc-gateway for public services and vpc-backend for internal
 - Subnet Strategy: Each VPC contains two private subnets across 2 (AZs)
