@@ -1,7 +1,25 @@
 # modules/vpc/main.tf
 
-variable "vpc_name" {}
-variable "vpc_cidr" {}
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0" # Or your preferred version
+    }
+  }
+}
+
+variable "vpc_name" {
+  type        = string
+  description = "Name of the VPC for the Rapyd Sentinel project"
+}
+
+variable "vpc_cidr" {
+  type        = string
+  description = "CIDR block for the VPC"
+}
+
+
 variable "public_subnets" { type = list(string) }
 variable "private_subnets" { type = list(string) }
 variable "azs" { type = list(string) }
