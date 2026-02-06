@@ -1,70 +1,49 @@
-To prevent accidental deployments, variables are required. Please use the provided .tfvars files
+🛡️ Sentinel Split: Multi-Env EKS Orchestration
 
-to create:
+An automated, cross-VPC Kubernetes architecture featuring VPC Peering, Internal NLB, and Remote-State CI/CD.
 
-1. aws configure --profile rapyd
-2. terraform init
-3. terraform validate
-4. apply:
-- aws configure --profile rapyd (once)
-- export AWS_PROFILE=rapyd (linux) or $env:AWS_PROFILE = "rapyd" (win)
-- terraform plan -var-file="rapyd.tfvars"
-- terraform apply -var-file="rapyd.tfvars"
+🚀 Quick Start
+Variables are required to prevent accidental deployments. Use the provided rapyd.tfvars.
 
-5. deploy backend
+1. Infrastructure Setup
+# Setup Profile
+aws configure --profile rapyd
+export AWS_PROFILE=rapyd  # Windows: $env:AWS_PROFILE = "rapyd"
 
-- aws eks update-kubeconfig --region eu-west-2 --name eks-backend --alias backend --profile rapyd
-- kubectl config use-context backend
-- Deploy Backend manifests: kubectl apply -f k8s/backend-service.yaml
-- Capture the Internal NLB DNS: kubectl get svc sentinel-backend-svc
-- kubectl apply -f k8s/network-policy.yaml
+# Provision
+terraform init
+terraform plan -var-file="rapyd.tfvars"
+terraform apply -var-file="rapyd.tfvars"
 
+2. Backend & Gateway Deployment
+# Connect to Backend & Deploy
+aws eks update-kubeconfig --region eu-west-2 --name eks-backend --alias backend --profile rapyd
+kubectl apply -f k8s/backend-deployment.yaml -f k8s/backend-service.yaml -f k8s/network-policy.yaml
 
-6. deploy gateway:
-- aws eks update-kubeconfig --region eu-west-2 --name eks-gateway --alias gateway --profile rapyd
-- kubectl config use-context gateway
-- kubectl get svc --all-namespaces --context backend # to find dns name
-- Update gateway-proxy.yaml with the DNS and deploy: 
--- kubectl apply -f k8s/gateway/
+# Capture Internal NLB DNS and update k8s/gateway-proxy.yaml, then:
+aws eks update-kubeconfig --region eu-west-2 --name eks-gateway --alias gateway --profile rapyd
+kubectl apply -f k8s/gateway-proxy.yaml
 
-7. verification:
--- kubectl get svc sentinel-gateway-public --context gateway
--- curl http://DNS_Name.eu-west-2.elb.amazonaws.com #  should get 200
+🏗️ Architecture & Security
+Networking: Two isolated VPCs connected via VPC Peering. Traffic flows from Gateway Proxy -> Peering -> Internal NLB -> Backend Pods (8080).
 
+Compute: Dual EKS clusters in private subnets with NAT Gateways for secure egress.
 
+Security: Least-privilege IAM, SGs restricted to cross-VPC CIDRs, and K8s NetworkPolicy for pod-level isolation.
 
-Currently include:
-1. Two Isolated VPCs: vpc-gateway for public services and vpc-backend for internal
-- Subnet Strategy: Each VPC contains two private subnets across 2 (AZs)
-- Egress Control: NAT Gateways are provisioned in both VPCs to allow outbound traffic
-- Peering: A VPC Peering connection between the Gateway and Backend networks.
+⚖️ Design Trade-offs (3-Day Limit)
+Connectivity: Used VPC Peering for simplicity/low-latency; Transit Gateway would be the choice for 3+ VPCs to reduce mesh complexity.
 
-2. Compute (EKS)
-- Dual Clusters: 2 operational Kubernetes clusters: eks-gateway and eks-backend.
-- IAM Compliance: EKS and Sentinel-related roles are created 
+High Availability: Used a single NAT Gateway per VPC to optimize cost; production requires one per Availability Zone.
 
-3. Security & Access
-- Least Privilege: Access is restricted to private subnets
+Identity: Used standard IAM credentials due to environment scope; OIDC Federation is preferred for production CI/CD.
 
+Service Discovery: Manual DNS updates for the proxy; production would utilize ExternalDNS or a Service Mesh.
 
-
-## 🛑 Teardown & Cost Management
-
-To avoid unnecessary AWS charges, destroy the infrastructure when not in use:
-
-```powershell
-# Windows (PowerShell)
-$env:AWS_PROFILE = "personal" 
-terraform destroy -var-file="terraform.tfvars" 
-
-# Linux/macOS
-export AWS_PROFILE=personal
-terraform destroy -var-file="terraform.tfvars" 
-
-
-ToDo:
-1. add dynamo DB lock to state
-2. move tf files from root to environments new folder
-4. add Helm/kustomize
-5. add OIDC
-6. automate dns section when deployinh gateway
+📝 Roadmap (ToDo)
+[ ] Resilience: Add DynamoDB for Terraform state locking and concurrency.
+[ ] Organization: Refactor .tf files into an environments/ directory structure.
+[ ] Packaging: Transition K8s manifests to Helm or Kustomize.
+[ ] Security: Implement OIDC for fine-grained IRSA.
+[ ] Automation: Implement ArgoCD for GitOps and ExternalDNS for endpoint mapping.
+[ ] Observability: Deploy Prometheus/Grafana for cross-cluster traffic monitoring.
