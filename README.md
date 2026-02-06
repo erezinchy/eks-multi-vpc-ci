@@ -5,7 +5,7 @@ to create:
 1. aws configure --profile rapyd
 2. terraform init
 3. terraform validate
-for default use:
+4. for default use:
 - aws configure --profile personal (once)
 - export AWS_PROFILE=personal (linux) or $env:AWS_PROFILE = "personal" (win)
 - terraform plan -var-file="terraform.tfvars"
@@ -37,8 +37,24 @@ Currently include:
 - Least Privilege: Access is restricted to private subnets
 
 
+
+## 🛑 Teardown & Cost Management
+
+To avoid unnecessary AWS charges, destroy the infrastructure when not in use:
+
+```powershell
+# Windows (PowerShell)
+$env:AWS_PROFILE = "personal" 
+terraform destroy -var-file="terraform.tfvars" 
+
+# Linux/macOS
+export AWS_PROFILE=personal
+terraform destroy -var-file="terraform.tfvars" 
+
+
 ToDo:
 1. move state to s3
 2. move tf files from root to environments new folder
 3. add tflint
 4. add Helm/kustomize
+5. add OIDC

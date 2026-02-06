@@ -1,12 +1,16 @@
 name: "Sentinel Split - Multi-Env Deployment"
 
 on:
+  push:
+    branches:
+      - dev        # Automatically trigger when you push to dev
+      - main       # Also trigger on main for final submission
   workflow_dispatch:
     inputs:
       target_env:
         description: 'Select Environment'
         required: true
-        default: 'testing'
+        default: 'rapyd'
         type: choice
         options:
           - testing
@@ -15,7 +19,8 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: ${{ github.event.inputs.target_env }} # This picks the correct secrets
+    # This dynamically picks 'rapyd' or 'testing' to load the correct secrets/vars
+    environment: ${{ github.event.inputs.target_env || (github.ref == 'refs/heads/dev' && 'rapyd' || 'testing') }}
     
     steps:
       - name: Checkout Code
@@ -24,13 +29,54 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }} # Loaded from the environment
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ vars.AWS_REGION }}
 
-      - name: Terraform Init
-        run: terraform init
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      # --- QUALITY CHECKS (Task Requirement) ---
+      
+      - name: Terraform Init & Validate
+        run: |
+          terraform init
+          terraform validate
+
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: v0.50.0
+
+      - name: Run TFLint
+        run: |
+          tflint --init
+          tflint --recursive
+
+      # --- INFRASTRUCTURE DEPLOYMENT ---
 
       - name: Terraform Apply
-        # Use the variable file specified in your environment secrets
         run: terraform apply -var-file="${{ secrets.TF_VARS_FILE }}" -auto-approve
+
+      # --- KUBERNETES DEPLOYMENT ---
+      
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+
+      - name: Deploy to Backend Cluster
+        run: |
+          aws eks update-kubeconfig --name eks-backend --region ${{ vars.AWS_REGION }}
+          # Validate manifests first (Requirement)
+          kubectl apply -f k8s/backend-service.yaml --dry-run=client
+          kubectl apply -f k8s/network-policy.yaml --dry-run=client
+          # Actual Apply
+          kubectl apply -f k8s/backend-service.yaml
+          kubectl apply -f k8s/network-policy.yaml
+
+      - name: Deploy to Gateway Cluster
+        run: |
+          aws eks update-kubeconfig --name eks-gateway --region ${{ vars.AWS_REGION }}
+          # Validate manifests first (Requirement)
+          kubectl apply -f k8s/gateway-proxy.yaml --dry-run=client
+          # Actual Apply
+          kubectl apply -f k8s/gateway-proxy.yaml
