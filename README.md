@@ -63,7 +63,7 @@ terraform destroy -var-file="terraform.tfvars"
 
 
 ToDo:
-1. move state to s3
+1. add dynamo DB lock to state
 2. move tf files from root to environments new folder
 4. add Helm/kustomize
 5. add OIDC

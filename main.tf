@@ -1,3 +1,12 @@
+terraform {
+  backend "s3" {
+    bucket         = "sentinel-terraform-state-erez" 
+    key            = "sentinel/terraform.tfstate"
+    region         = "eu-west-2"
+    # Optional: dynamodb_table = "terraform-lock" 
+  }
+}
+
 # --- 1. SETUP ---
 # We fetch the AZs dynamically based on the region provided in var.aws_region
 data "aws_availability_zones" "available" { state = "available" }
