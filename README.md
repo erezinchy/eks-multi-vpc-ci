@@ -5,23 +5,27 @@ to create:
 1. aws configure --profile rapyd
 2. terraform init
 3. terraform validate
-4. for default use:
-- aws configure --profile personal (once)
-- export AWS_PROFILE=personal (linux) or $env:AWS_PROFILE = "personal" (win)
-- terraform plan -var-file="terraform.tfvars"
-- terraform apply -var-file="terraform.tfvars"
-
-for rapyd use:
+4. apply:
 - aws configure --profile rapyd (once)
 - export AWS_PROFILE=rapyd (linux) or $env:AWS_PROFILE = "rapyd" (win)
 - terraform plan -var-file="rapyd.tfvars"
 - terraform apply -var-file="rapyd.tfvars"
 
-common section:
-#Update your kubeconfig: aws eks update-kubeconfig --name <cluster_name>
-- Deploy Backend manifests: kubectl apply -f k8s/backend/
+5. deploy backend
+
+- aws eks update-kubeconfig --region eu-west-2 --name eks-backend --alias backend --profile rapyd
+- kubectl config use-context backend
+- Deploy Backend manifests: kubectl apply -f k8s/backend-service.yaml
 - Capture the Internal NLB DNS: kubectl get svc sentinel-backend-svc
-- Update gateway-proxy.yaml with the DNS and deploy: kubectl apply -f k8s/gateway/
+- kubectl apply -f k8s/network-policy.yaml
+
+
+6. deploy gateway:
+- aws eks update-kubeconfig --region eu-west-2 --name eks-gateway --alias gateway --profile rapyd
+- kubectl config use-context gateway
+- kubectl get svc --all-namespaces --context backend # to find dns name
+- Update gateway-proxy.yaml with the DNS and deploy: 
+-- kubectl apply -f k8s/gateway/
 
 Currently include:
 1. Two Isolated VPCs: vpc-gateway for public services and vpc-backend for internal
@@ -55,6 +59,6 @@ terraform destroy -var-file="terraform.tfvars"
 ToDo:
 1. move state to s3
 2. move tf files from root to environments new folder
-3. add tflint
 4. add Helm/kustomize
 5. add OIDC
+6. automate dns section when deployinh gateway

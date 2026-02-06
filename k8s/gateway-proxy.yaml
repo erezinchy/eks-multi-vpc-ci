@@ -3,14 +3,25 @@ kind: Deployment
 metadata:
   name: sentinel-gateway-proxy
 spec:
+  # --- FIX 1: ADD THIS MISSING BLOCK ---
+  selector:
+    matchLabels:
+      app: sentinel-gateway-proxy
+  # --------------------------------------
+  replicas: 2
   template:
+    metadata:
+      # --- FIX 2: ADD THESE LABELS ---
+      labels:
+        app: sentinel-gateway-proxy
+      # -------------------------------
     spec:
       containers:
       - name: nginx-proxy
         image: nginx:latest
         env:
         - name: BACKEND_URL
-          # You will get this DNS after applying the backend service
+          # PLACEHOLDER: Update this with the internal NLB DNS from the backend cluster
           value: "http://internal-sentinel-backend-xxxx.elb.eu-west-2.amazonaws.com"
 ---
 apiVersion: v1
@@ -18,8 +29,9 @@ kind: Service
 metadata:
   name: sentinel-gateway-public
 spec:
-  type: LoadBalancer # This one is public-facing
+  type: LoadBalancer 
   selector:
+    # --- THIS MUST MATCH THE APP LABEL ABOVE ---
     app: sentinel-gateway-proxy
   ports:
     - protocol: TCP

@@ -1,6 +1,6 @@
-# modules/iam/main.tf
-
 terraform {
+  required_version = ">= 1.5.0" 
+
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -9,9 +9,10 @@ terraform {
   }
 }
 
-# 1. EKS Cluster Role (Control Plane)
+# --- 1. EKS CLUSTER ROLE (Control Plane) ---
 resource "aws_iam_role" "cluster" {
-  name = "${var.cluster_name}-cluster-role"
+  # Unique name to avoid conflicts with existing roles
+  name = "${var.cluster_name}-cluster-role-v2"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -28,9 +29,10 @@ resource "aws_iam_role_policy_attachment" "cluster_AmazonEKSClusterPolicy" {
   role       = aws_iam_role.cluster.name
 }
 
-# 2. EKS Node Group Role (Worker Nodes)
+# --- 2. EKS NODE GROUP ROLE (Worker Nodes) ---
 resource "aws_iam_role" "node" {
-  name = "${var.cluster_name}-node-role"
+  # Unique name to avoid conflicts with existing roles
+  name = "${var.cluster_name}-node-role-v2"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -42,7 +44,7 @@ resource "aws_iam_role" "node" {
   })
 }
 
-# IMPORTANT: These three attachments are required for "Healthy" nodes
+# IMPORTANT: These three attachments are required for nodes to join the cluster
 resource "aws_iam_role_policy_attachment" "node_AmazonEKSWorkerNodePolicy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
   role       = aws_iam_role.node.name
@@ -57,4 +59,3 @@ resource "aws_iam_role_policy_attachment" "node_AmazonEC2ContainerRegistryReadOn
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
   role       = aws_iam_role.node.name
 }
-
