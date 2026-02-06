@@ -1,4 +1,6 @@
 terraform {
+  required_version = ">= 1.5.0" # This satisfies the TFLint warning
+  
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -8,5 +10,5 @@ terraform {
 }
 
 provider "aws" {
-  region = var.aws_region # Changed from "il-central-1"
+  region = var.aws_region
 }
